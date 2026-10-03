@@ -10,19 +10,19 @@
 
 ## Features
 
-- 🚌 Manage buses (Hiace / Coaster), each with its own capacity, depot and destination
-- 👥 Add passengers (employee / student / faculty) with name and address
-- 🧠 Route optimization with **Google OR-Tools** (start at depot → pick up everyone → end at destination)
-- 🚦 **Live-traffic** travel times via **TomTom** (optional)
-- 🗺️ Real road distances and geometry via **OSRM** (free, used automatically when TomTom is not configured)
-- 🛟 Automatic fallback to straight-line (haversine) estimates if no Masar service is reachable
-- 📊 Dashboard with a card per bus: route map, stop order, time and distance for every leg
-- ✏️ Edit mode: drag depot, destination and passengers on the map, then save all changes at once
-- 🎬 Trip simulation: watch the bus drive along the computed route
-- 🗺️ Open any route in Google Maps
-- 📥 Export selected buses to Excel (summary sheet + one sheet per bus)
-- 🔗 Add locations by address search, map click, or a pasted Google Maps link / coordinates
-- 💾 Routes and per-stop details are saved in PostgreSQL
+-  Manage buses (Hiace / Coaster), each with its own capacity, depot and destination
+-  Add passengers (employee / student / faculty) with name and address
+-  Route optimization with **Google OR-Tools** (start at depot → pick up everyone → end at destination)
+-  **Live-traffic** travel times via **TomTom** (optional)
+-  Real road distances and geometry via **OSRM** (free, used automatically when TomTom is not configured)
+-  Automatic fallback to straight-line (haversine) estimates if no Masar service is reachable
+-  Dashboard with a card per bus: route map, stop order, time and distance for every leg
+-  Edit mode: drag depot, destination and passengers on the map, then save all changes at once
+-  Trip simulation: watch the bus drive along the computed route
+-  Open any route in Google Maps
+-  Export selected buses to Excel (summary sheet + one sheet per bus)
+-  Add locations by address search, map click, or a pasted Google Maps link / coordinates
+-  Routes and per-stop details are saved in PostgreSQL
 
 ---
 
