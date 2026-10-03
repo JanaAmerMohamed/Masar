@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Masar — النظام الكامل</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------------- Header + top-level tabs ---------------- */
+    header {
+      padding: 14px 24px;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header .title-block h1 { font-size: 1.2rem; font-weight: 600; }
+    header .title-block span { color: #94a3b8; font-size: 0.85rem; }
+
+    .top-tabs {
+      display: flex;
+      gap: 8px;
+    }
+    .top-tab-btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #94a3b8;
+    }
+    .top-tab-btn.active {
+      background: #0ea5e9;
+      color: #fff;
+      border-color: #0ea5e9;
+    }
+    .top-tab-btn:hover:not(.active) { border-color: #38bdf8; color: #e2e8f0; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* ---------------- Shared bits ---------------- */
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      margin-bottom: 6px;
+    }
+
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .field-row > label {
+      margin-bottom: 0;
+      min-width: 100px;
+      flex-shrink: 0;
+    }
+    .field-row > input,
+    .field-row > select {
+      flex: 1 1 140px;
+      min-width: 140px;
+    }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid #475569;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 0.95rem;
+    }
+    input:focus, select:focus { outline: none; border-color: #38bdf8; }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .btn-search { background: #0ea5e9; color: #fff; width: 100%; margin-top: 8px; }
+    .btn-search:hover { background: #0284c7; }
+    .btn-save { background: #22c55e; color: #fff; width: 100%; }
+    .btn-save:hover { background: #16a34a; }
+    .btn-save:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .result-box {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+    .result-box strong { color: #38bdf8; }
+    .hint { font-size: 0.8rem; color: #64748b; line-height: 1.5; }
+    .search-results {
+      list-style: none;
+      max-height: 180px;
+      overflow-y: auto;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      background: #0f172a;
+      display: none;
+    }
+    .search-results li {
+      padding: 10px 12px;
+      border-bottom: 1px solid #1e293b;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    .search-results li:hover { background: #1e293b; }
+    .search-results li:last-child { border-bottom: none; }
+    .status { font-size: 0.8rem; color: #94a3b8; min-height: 1.2em; }
+    .status.error { color: #f87171; }
+    .status.ok { color: #4ade80; }
+    .status.warn { color: #fbbf24; }
+    .passenger-count { font-size: 0.8rem; color: #38bdf8; }
+
+    .mode-toggle {
+      display: flex; gap: 8px; background: #0f172a;
+      border: 1px solid #334155; border-radius: 10px; padding: 6px;
+    }
+    .mode-toggle button {
+      flex: 1; padding: 9px 10px; border-radius: 7px; font-size: 0.88rem;
+      font-weight: 600; border: 1px solid transparent; background: transparent;
+      color: #94a3b8; cursor: pointer;
+    }
+    .mode-toggle button.active { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+    .mode-toggle button:hover:not(.active) { color: #e2e8f0; border-color: #475569; }
+    .mode-toggle button.edit-active.active {
+      background: #f59e0b; color: #0f172a; border-color: #f59e0b;
+    }
+    .edit-mode-banner {
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24; border-radius: 8px; padding: 10px 12px;
+      font-size: 0.82rem; line-height: 1.5;
+    }
+    #addPassengerSection, #editSection {
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .btn-download {
+      background: #8b5cf6; color: #fff; width: 100%; margin-top: 8px;
+    }
+    .btn-download:hover { background: #7c3aed; }
+    .btn-download.inline {
+      width: auto; margin-top: 0; padding: 8px 14px; font-size: 0.85rem;
+    }
+    .export-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+    /* ---------------- Operations view (Passengers / Buses tabs) ---------------- */
+    #operationsView .container {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 0;
+      min-height: 0;
+      height: calc(100vh - 68px);
+    }
+    .sidebar {
+      background: #1e293b;
+      padding: 20px;
+      border-left: 1px solid #334155;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow-y: auto;
+    }
+    .sub-panel { display: none; flex-direction: column; gap: 16px; }
+    .sub-panel.active { display: flex; }
+    #map { width: 100%; height: 100%; min-height: 500px; }
+
+    .endpoint-section {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .endpoint-title { color: #e2e8f0; font-weight: 600; margin-bottom: 8px; font-size: 0.9rem; }
+    .endpoint-actions { display: flex; gap: 8px; }
+    .endpoint-actions button { flex: 1; }
+    .btn-start { background: #22c55e; color: #fff; }
+    .btn-start:hover { background: #16a34a; }
+    .btn-final { background: #f59e0b; color: #0f172a; }
+    .btn-final:hover { background: #d97706; }
+    .endpoint-box { margin-top: 8px; font-size: 0.82rem; line-height: 1.5; color: #94a3b8; }
+    .endpoint-box strong { color: #38bdf8; }
+
+    /* ---------------- Dashboard view ---------------- */
+    #dashboardView { padding: 24px 20px 60px; max-width: 1100px; margin: 0 auto; }
+    .dash-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .refresh-btn { background: #0ea5e9; color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+    .refresh-btn:hover { background: #0284c7; }
+    .refresh-btn:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .status-line { font-size: 0.9rem; color: #94a3b8; }
+    .status-line.error { color: #f87171; }
+
+    .bus-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+    .bus-card-header { padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; cursor: pointer; flex-wrap: wrap; }
+    .bus-card-header:hover { background: #24334a; }
+    .bus-title { display: flex; align-items: center; gap: 10px; }
+    .bus-name { font-size: 1.05rem; font-weight: 700; }
+    .bus-cap { color: #94a3b8; font-size: 0.82rem; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+    .badge-real { background: rgba(56,189,248,0.15); color: #38bdf8; }
+    .badge-approx { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .badge-none { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .stat-strip { display: flex; gap: 22px; flex-wrap: wrap; font-size: 0.85rem; color: #cbd5e1; }
+    .stat-strip b { color: #f1f5f9; }
+    .chevron { transition: transform 0.15s ease; color: #64748b; font-size: 1rem; }
+    .bus-card.open .chevron { transform: rotate(90deg); }
+    .bus-card-body { display: none; border-top: 1px solid #334155; padding: 18px 20px 20px; }
+    .bus-card.open .bus-card-body { display: block; }
+    .meta-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+    .meta-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; }
+    .meta-box .label { font-size: 0.72rem; color: #64748b; margin-bottom: 4px; }
+    .meta-box .value { font-size: 0.95rem; font-weight: 600; color: #e2e8f0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead th { text-align: right; color: #94a3b8; font-weight: 600; font-size: 0.75rem; padding: 8px 10px; border-bottom: 1px solid #334155; }
+    tbody td { padding: 9px 10px; border-bottom: 1px solid #1e293b; }
+    tbody tr:hover { background: #24334a; }
+    .stop-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-size: 0.7rem; font-weight: 700; color: #0f172a; }
+    .stop-badge.depot { background: #f59e0b; }
+    .stop-badge.destination { background: #f59e0b; }
+    .stop-badge.passenger { background: #22c55e; }
+    .empty-note { color: #64748b; font-size: 0.85rem; padding: 10px 4px; }
+    .no-route-note { color: #94a3b8; font-size: 0.85rem; background: #0f172a; border: 1px dashed #334155; border-radius: 8px; padding: 14px; text-align: center; }
+    .delete-btn { background: transparent; color: #f87171; border: 1px solid rgba(248,113,113,0.35); width: 34px; height: 34px; padding: 0; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; font-size: 1rem; cursor: pointer; flex-shrink: 0; }
+    .delete-btn:hover { background: rgba(248,113,113,0.12); border-color: #f87171; }
+    .passenger-actions { width: 42px; text-align: center; }
+    .passenger-table-wrap { overflow-x: auto; margin-top: 14px; }
+    .dash-map-wrap {
+      margin: 14px 0 4px; border: 1px solid #334155;
+      border-radius: 10px; overflow: hidden; background: #0f172a;
+    }
+    .dash-map-title {
+      font-size: 0.82rem; font-weight: 600; color: #94a3b8;
+      padding: 10px 12px 0;
+    }
+    .dash-map { width: 100%; height: 280px; }
+    .dash-map-empty {
+      color: #64748b; font-size: 0.85rem; padding: 18px 12px; text-align: center;
+    }
+
+    /* ---------------- Route details modal ---------------- */
+    .route-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.75);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .route-modal-overlay.open { display: flex; }
+    .route-modal {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      width: 100%;
+      max-width: 560px;
+      max-height: 85vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    .route-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid #334155;
+      position: sticky;
+      top: 0;
+      background: #1e293b;
+      z-index: 1;
+    }
+    .route-modal-header h2 { font-size: 1.05rem; font-weight: 700; }
+    .route-modal-close {
+      background: transparent;
+      border: 1px solid #475569;
+      color: #e2e8f0;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      font-size: 1rem;
+      padding: 0;
+      line-height: 1;
+    }
+    .route-modal-close:hover { border-color: #f87171; color: #f87171; }
+    .route-modal-body { padding: 18px 20px 22px; display: flex; flex-direction: column; gap: 16px; }
+    .route-summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .route-stat {
+      background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+      padding: 10px 12px; display: flex; flex-direction: column; gap: 4px;
+    }
+    .route-stat-label { font-size: 0.72rem; color: #64748b; }
+    .route-stat strong { color: #38bdf8; font-size: 1rem; }
+    .route-summary-grid .export-row { grid-column: 1 / -1; margin: 4px 0 0; }
+    .route-section-title { font-size: 0.85rem; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+    .btn-view-details {
+      background: #0f172a; color: #38bdf8; border: 1px solid #38bdf8;
+      width: 100%; margin-top: 8px; display: none;
+    }
+    .btn-view-details:hover { background: rgba(56, 189, 248, 0.12); }
+
+    /* ---------------- Bus selection + Excel export (Dashboard) ---------------- */
+    .dash-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .select-all-wrap {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.85rem; color: #94a3b8; cursor: pointer; user-select: none;
+    }
+    .select-all-wrap input { width: 16px; height: 16px; accent-color: #0ea5e9; cursor: pointer; }
+    .btn-export {
+      background: #16a34a; color: #fff; border: none; padding: 9px 16px;
+      border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .btn-export:hover:not(:disabled) { background: #15803d; }
+    .btn-export:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .bus-select-wrap { display: flex; align-items: center; }
+    .bus-select-checkbox { width: 18px; height: 18px; accent-color: #0ea5e9; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title-block">
+      <h1>مسار — النظام الكامل</h1>
+      <span>لوحة المتابعة، إدخال الركاب، وإدارة الباصات — في مكان واحد</span>
+    </div>
+    <nav class="top-tabs">
+      <button class="top-tab-btn active" id="navDashboard">لوحة المتابعة 📊</button>
+      <button class="top-tab-btn" id="navPassengers">الركاب</button>
+      <button class="top-tab-btn" id="navBuses">الباصات</button>
+    </nav>
+  </header>
+
+  <!-- ============================================================
+       DASHBOARD VIEW
+       ============================================================ -->
+  <div class="view active" id="dashboardView">
+    <div class="dash-top">
+      <div class="status-line" id="statusLine">جاري تحميل الباصات...</div>
+      <div class="dash-actions">
+        <label class="select-all-wrap">
+          <input type="checkbox" id="selectAllBuses" />
+          تحديد الكل
+        </label>
+        <button class="btn-export" id="btnExportExcel" disabled>📥 تصدير Excel</button>
+        <button class="refresh-btn" id="btnRefresh">تحديث 🔄</button>
+      </div>
+    </div>
+    <div id="busList"></div>
+  </div>
+
+  <!-- ============================================================
+       OPERATIONS VIEW (Passengers / Buses — the tabs from your file)
+       ============================================================ -->
+  <div class="view" id="operationsView">
+    <div class="container">
+      <aside class="sidebar">
+
+        <!-- PASSENGERS sub-panel (إضافة راكب + وضع التعديل في نفس التاب) -->
+        <div class="sub-panel active" id="passengerPanel">
+          <div class="field-row">
+            <label>الباص</label>
+            <select id="busSelect">
+              <option value="">جاري تحميل الباصات...</option>
+            </select>
+          </div>
+          <p class="passenger-count" id="passengerCount"></p>
+
+          <div class="mode-toggle" role="tablist" aria-label="وضع الركاب">
+            <button type="button" id="btnModeAdd" class="active" aria-pressed="true">➕ إضافة راكب</button>
+            <button type="button" id="btnModeEdit" class="edit-active" aria-pressed="false">✏️ تعديل</button>
+          </div>
+
+          <div id="addPassengerSection">
+            <div class="field-row">
+              <label>اسم الراكب</label>
+              <input type="text" id="passengerName" placeholder="مثلاً: أحمد محمد" />
+            </div>
+            <div class="field-row">
+  <label>نوع الراكب</label>
+  <select id="passengerType">
+    <option value="">اختر النوع...</option>
+    <option value="employee">موظف</option>
+    <option value="student">طالب</option>
+    <option value="faculty">هيئة تدريس</option>
+  </select>
+  </div>
+            <div>
+              <div class="field-row">
+                <label>بحث بالعنوان</label>
+                <input type="text" id="addressSearch" placeholder="مثلاً: شارع الهرم، الجيزة" />
+              </div>
+              <button class="btn-search" id="btnSearch">بحث</button>
+              <ul class="search-results" id="searchResults"></ul>
+            </div>
+            <div>
+              <div class="field-row">
+                <label>رابط Google Maps</label>
+                <input type="text" id="passengerGmaps" placeholder="رابط، أو 30.044, 31.235، أو 30°01'05.1&quot;N 30°58'47.8&quot;E" />
+              </div>
+              <button class="btn-search" id="btnPassengerGmaps" style="margin-top:4px;">استخدام الرابط/الإحداثيات</button>
+            </div>
+            <div class="result-box" id="coordsBox">
+              <div>العنوان: <strong id="selectedAddress">—</strong></div>
+              <div>Latitude: <strong id="selectedLat">—</strong></div>
+              <div>Longitude: <strong id="selectedLng">—</strong></div>
+            </div>
+            <button class="btn-save" id="btnSave" disabled>حفظ موقع الراكب</button>
+            <p class="status" id="status"></p>
+            <hr style="border-color:#334155; width:100%;" />
+            <button class="btn-search" id="btnCompute">احسب المسار الأمثل 🚌</button>
+            <button class="btn-view-details" id="btnViewRouteDetails">📊 عرض تفاصيل المسار</button>
+            </div>
+
+          <div id="editSection" style="display:none;">
+            <div class="edit-mode-banner">
+              وضع التعديل مفعّل — اسحب أي نقطة على الخريطة (🟠 انطلاق / وجهة، 🟢 راكب).
+              التعديلات مش بتتحفظ أوتوماتيك؛ لما تخلّص دوس «حفظ وإعادة الحساب».
+            </div>
+            <p class="hint">
+              غيّر مكان نقطة الانطلاق أو الوجهة أو أي راكب بالسحب، وبعدين احفظ مرة واحدة.
+              لو عايز تضيف راكب جديد ارجع لوضع «إضافة راكب».
+            </p>
+            <button class="btn-save" id="btnSaveEdits">💾 حفظ التعديلات وإعادة حساب المسار</button>
+            <p class="status" id="editStatus"></p>
+          </div>
+        </div>
+
+        <!-- BUSES sub-panel -->
+        <div class="sub-panel" id="busPanel">
+          <div class="field-row">
+            <label>اسم الباص</label>
+            <input type="text" id="busName" placeholder="مثلاً: Bus 1" />
+          </div>
+
+          <div class="field-row">
+  <label>نوع الباص</label>
+  <select id="busType">
+    <option value="">اختر النوع...</option>
+    <option value="hiace" data-capacity="14">هاي إيس (14 راكب)</option>
+    <option value="coaster" data-capacity="23">كوستر (23 راكب)</option>
+  </select>
+</div>
+<p class="hint" id="busTypeCapacityHint"></p>
+
+          <div class="endpoint-section">
+            <div class="endpoint-title">📍 نقطة الانطلاق (Starting Point)</div>
+            <input type="text" id="depotSearch" placeholder="مثلاً: جامعة نيو جيزة، الشيخ زايد" />
+            <div class="endpoint-actions">
+              <button class="btn-start" id="btnDepotSearch">بحث</button>
+              <button class="btn-start" id="btnDepotMap">اختيار من الخريطة</button>
+            </div>
+            <ul class="search-results" id="depotResults"></ul>
+            <input type="text" id="depotGmaps" placeholder="أو الصق رابط Google Maps / إحداثيات هنا" style="margin-top:6px;" />
+            <button class="btn-start" id="btnDepotGmaps" style="margin-top:4px;">استخدام الرابط/الإحداثيات</button>
+            <div class="endpoint-box">
+              العنوان: <strong id="depotAddress">—</strong><br>
+              Latitude: <strong id="depotLat">—</strong><br>
+              Longitude: <strong id="depotLng">—</strong>
+            </div>
+          </div>
+
+          <div class="endpoint-section">
+            <div class="endpoint-title">🏁 الوجهة النهائية (Final Destination)</div>
+            <input type="text" id="destSearch" placeholder="مثلاً: جامعة نيو جيزة، الشيخ زايد" />
+            <div class="endpoint-actions">
+              <button class="btn-final" id="btnDestSearch">بحث</button>
+              <button class="btn-final" id="btnDestMap">اختيار من الخريطة</button>
+            </div>
+            <ul class="search-results" id="destResults"></ul>
+            <input type="text" id="destGmaps" placeholder="أو الصق رابط Google Maps / إحداثيات هنا" style="margin-top:6px;" />
+            <button class="btn-final" id="btnDestGmaps" style="margin-top:4px;">استخدام الرابط/الإحداثيات</button>
+            <div class="endpoint-box">
+              العنوان: <strong id="destAddress">—</strong><br>
+              Latitude: <strong id="destLat">—</strong><br>
+              Longitude: <strong id="destLng">—</strong>
+            </div>
+          </div>
+
+          <p class="hint">
+            ابحث عن نقطة الانطلاق والوجهة النهائية، أو اختارهم من الخريطة.
+            لازم تحدد الاتنين قبل إضافة الباص.
+          </p>
+
+          <button class="btn-save" id="btnAddBus" disabled>إضافة الباص 🚌</button>
+          <p class="status" id="busStatus"></p>
+        </div>
+
+      </aside>
+
+      <div id="map"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       ROUTE DETAILS MODAL 
+       ============================================================ -->
+  <div class="route-modal-overlay" id="routeModalOverlay">
+    <div class="route-modal">
+      <div class="route-modal-header">
+        <h2>📊 تفاصيل المسار المحسوب</h2>
+        <button type="button" class="route-modal-close" id="btnCloseRouteModal" aria-label="إغلاق">✕</button>
+      </div>
+      <div class="route-modal-body">
+        <div class="result-box route-summary-grid" id="routeResultBox" style="display:none;">
+          <div class="route-stat"><span class="route-stat-label">عدد المحطات</span><strong id="routeStops">—</strong></div>
+          <div class="route-stat"><span class="route-stat-label">المسافة الكلية</span><strong id="routeDistance">—</strong>&nbsp;كم</div>
+          <div class="route-stat"><span class="route-stat-label">الوقت المتوقع</span><strong id="routeDuration">—</strong></div>
+          <div class="route-stat"><span class="route-stat-label">نسبة التوفير</span><strong id="routeSavings">—</strong></div>
+          <div class="export-row">
+            <button type="button" class="btn-download inline" id="btnOpenGmaps" style="background:#0ea5e9;">🗺️ فتح في Google Maps</button>
+          </div>
+        </div>
+        <div class="result-box" id="legsBox" style="display:none;">
+          <div class="route-section-title">⏱️ الوقت بين كل محطة والتانية</div>
+          <ol id="legsList" style="padding-inline-start:18px; display:flex; flex-direction:column; gap:4px;"></ol>
+        </div>
+        <div class="result-box" id="simBox" style="display:none;">
+          <div class="route-section-title">🎬 محاكاة الرحلة</div>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <button class="btn-search" id="btnSimPlay" style="width:auto;">▶ تشغيل المحاكاة</button>
+            <button class="btn-search" id="btnSimRestart" style="width:auto;">⏮ إعادة من الأول</button>
+            <select id="simSpeed" style="width:auto;">
+              <option value="0.5">0.5x</option>
+              <option value="1" selected>1x</option>
+              <option value="2">2x</option>
+              <option value="4">4x</option>
+            </select>
+          </div>
+          <input type="range" id="simProgress" min="0" max="100" value="0" style="width:100%; margin-top:10px;" />
+          <p class="status" id="simStatus"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+
+    // ==================================================================
+    // TOP-LEVEL TAB SWITCHING (Dashboard / Passengers / Buses)
+    
+    // ==================================================================
+    const navDashboard = document.getElementById("navDashboard");
+    const navPassengers = document.getElementById("navPassengers");
+    const navBuses = document.getElementById("navBuses");
+    const dashboardView = document.getElementById("dashboardView");
+    const operationsView = document.getElementById("operationsView");
+    const passengerPanel = document.getElementById("passengerPanel");
+    const busPanel = document.getElementById("busPanel");
+    const addPassengerSection = document.getElementById("addPassengerSection");
+    const editSection = document.getElementById("editSection");
+    const btnModeAdd = document.getElementById("btnModeAdd");
+    const btnModeEdit = document.getElementById("btnModeEdit");
+
+    let mapInitialized = false;
+    let dashboardLoadedOnce = false;
+    let passengerMode = "add";
+    let lastComputedRoute = null; // for Google Maps export from passengers tab
+
+    function clearPassengerFormLayers() {
+      if (marker) { map.removeLayer(marker); marker = null; }
+      passengerMarkers.forEach((m) => map.removeLayer(m));
+      passengerMarkers = [];
+    }
+
+    function clearBusFormLayers() {
+      if (depotMarker) { map.removeLayer(depotMarker); depotMarker = null; }
+      if (destinationMarker) { map.removeLayer(destinationMarker); destinationMarker = null; }
+    }
+
+    function setPassengerMode(mode) {
+      passengerMode = mode;
+      const isEdit = mode === "edit";
+      btnModeAdd.classList.toggle("active", !isEdit);
+      btnModeEdit.classList.toggle("active", isEdit);
+      btnModeAdd.setAttribute("aria-pressed", String(!isEdit));
+      btnModeEdit.setAttribute("aria-pressed", String(isEdit));
+      addPassengerSection.style.display = isEdit ? "none" : "";
+      editSection.style.display = isEdit ? "" : "none";
+      if (isEdit) {
+        clearPassengerFormLayers();
+        clearRouteLayers();
+        if (typeof pauseSimulation === "function") pauseSimulation();
+        loadEditMode();
+      } else {
+        clearEditLayers();
+        loadPassengersForCurrentBus();
+      }
+    }
+
+    function showDashboard() {
+      navDashboard.classList.add("active");
+      navPassengers.classList.remove("active");
+      navBuses.classList.remove("active");
+      dashboardView.classList.add("active");
+      operationsView.classList.remove("active");
+      clearEditLayers();
+      if (!dashboardLoadedOnce) {
+        dashboardLoadedOnce = true;
+        loadDashboard();
+      }
+    }
+
+    function showOperations(which) {
+      navDashboard.classList.remove("active");
+      dashboardView.classList.remove("active");
+      operationsView.classList.add("active");
+      navPassengers.classList.remove("active");
+      navBuses.classList.remove("active");
+      passengerPanel.classList.remove("active");
+      busPanel.classList.remove("active");
+      busMode = null;
+      if (which === "passengers") {
+        navPassengers.classList.add("active");
+        passengerPanel.classList.add("active");
+        clearBusFormLayers();
+        setPassengerMode("add");
+      } else if (which === "buses") {
+        navBuses.classList.add("active");
+        busPanel.classList.add("active");
+        clearEditLayers();
+        clearPassengerFormLayers();
+        passengerMode = "add";
+      }
+      setTimeout(() => { if (mapInitialized) map.invalidateSize(); }, 50);
+    }
+
+    navDashboard.onclick = showDashboard;
+    navPassengers.onclick = () => showOperations("passengers");
+    navBuses.onclick = () => showOperations("buses");
+    btnModeAdd.onclick = () => setPassengerMode("add");
+    btnModeEdit.onclick = () => setPassengerMode("edit");
+
+    // ==================================================================
+    // MAP (shared by Passengers + Buses tabs)
+    // ==================================================================
+    const map = L.map("map").setView([30.0444, 31.2357], 12);
+    mapInitialized = true;
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap",
+      maxZoom: 19,
+    }).addTo(map);
+
+    let marker = null;
+    let selected = { lat: null, lng: null, address: null };
+    let currentBusId = null;
+    let passengerMarkers = [];
+    let routeLine = null;
+    let routeStopMarkers = [];
+
+
+
+    let busMode = null; // "depot" أو "destination" 
+    let depotMarker = null;
+    let destinationMarker = null;
+    let depot = { lat: null, lng: null, address: null };
+
+    let destination = { lat: null, lng: null, address: null };
+
+    function setStatus(msg, type = "") {
+      const el = document.getElementById("status");
+      el.textContent = msg;
+      el.className = "status " + type;
+    }
+    function setBusStatus(msg, type = "") {
+      const el = document.getElementById("busStatus");
+      el.textContent = msg;
+      el.className = "status " + type;
+    }
+
+    // ------------------------------------------------------------------
+    // Google Maps link / coordinate parser
+    // like DMS 30°01'05.1"N 30°58'47.8"E
+    // ------------------------------------------------------------------
+
+    function dmsToDecimal(deg, min, sec, dir) {
+      let dec = Number(deg) + Number(min) / 60 + Number(sec) / 3600;
+      if (dir === "S" || dir === "W" || dir === "s" || dir === "w") dec = -dec;
+      return dec;
+    }
+
+    function tryParseDMS(text) {
+
+      const dmsPart = "(\\d{1,3})[°:]\\s*(\\d{1,2})['′:]\\s*([\\d.]+)[\"″]?\\s*([NSEWnsew])";
+      const re = new RegExp(dmsPart + "[,\\s]+" + dmsPart);
+      const m = text.match(re);
+      if (!m) return null;
+      const [, d1, m1, s1, dir1, d2, m2, s2, dir2] = m;
+      let lat, lng;
+      if (/[NnSs]/.test(dir1)) {
+        lat = dmsToDecimal(d1, m1, s1, dir1);
+        lng = dmsToDecimal(d2, m2, s2, dir2);
+      } else {
+        lng = dmsToDecimal(d1, m1, s1, dir1);
+        lat = dmsToDecimal(d2, m2, s2, dir2);
+      }
+      return { lat, lng };
+    }
+
+    function tryParseDirectCoords(text) {
+      const m = text.trim().match(/^(-?\d{1,3}(?:\.\d+)?)\s*[,\s]\s*(-?\d{1,3}(?:\.\d+)?)$/);
+      if (!m) return null;
+      const lat = parseFloat(m[1]), lng = parseFloat(m[2]);
+      if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+      return { lat, lng };
+    }
+
+    function tryParseGoogleMapsUrl(text) {
+
+      let m = text.match(/!3d(-?\d{1,3}\.\d+)!4d(-?\d{1,3}\.\d+)/);
+      if (!m) m = text.match(/@(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+      if (!m) m = text.match(/[?&]q=(-?\d{1,3}\.\d+),(-?\d{1,3}\.\d+)/);
+      if (!m) return null;
+      const result = { lat: parseFloat(m[1]), lng: parseFloat(m[2]) };
+      const nameMatch = text.match(/\/maps\/place\/([^\/]+)\//);
+      if (nameMatch) {
+        try { result.name = decodeURIComponent(nameMatch[1].replace(/\+/g, " ")); }
+        catch (e) { /* تجاهل لو فشل الديكود */ }
+      }
+      return result;
+    }
+
+    function isShortGoogleMapsLink(text) {
+      return /https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps)\/\S+/.test(text);
+    }
+
+
+    async function parseLocationInput(rawText) {
+      const text = rawText.trim();
+      if (!text) return null;
+
+      if (isShortGoogleMapsLink(text)) {
+        try {
+          const res = await fetch(`${API_BASE}/resolve-maps-link?url=${encodeURIComponent(text)}`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          return tryParseGoogleMapsUrl(data.resolved_url);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      return tryParseGoogleMapsUrl(text) || tryParseDMS(text) || tryParseDirectCoords(text);
+    }
+
+
+    function selectedBusTypeInfo() {
+  const sel = document.getElementById("busType");
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) return null;
+  return { type: opt.value, capacity: Number(opt.dataset.capacity), label: opt.textContent };
+}
+
+function busTypeLabel(type) {
+  if (type === "hiace") return "هاي إيس";
+  if (type === "coaster") return "كوستر";
+  return "—";
+}
+
+function passengerTypeLabel(type) {
+  if (type === "employee") return "موظف";
+  if (type === "student") return "طالب";
+  if (type === "faculty") return "هيئة تدريس";
+  return "—";
+}
+  function updateAddBusButton() {
+    const info = selectedBusTypeInfo();
+    const ready =
+      document.getElementById("busName").value.trim() &&
+      info !== null &&
+      depot.lat !== null &&
+      destination.lat !== null;
+    document.getElementById("btnAddBus").disabled = !ready;
+}
+
+    function endpointLabel(type) {
+      return type === "depot" ? "نقطة الانطلاق" : "الوجهة النهائية";
+    }
+
+    function setEndpoint(type, lat, lng, address) {
+      const point = { lat, lng, address: address || "تم الاختيار من الخريطة" };
+      if (type === "depot") {
+        depot = point;
+        document.getElementById("depotAddress").textContent = point.address;
+        document.getElementById("depotLat").textContent = lat.toFixed(6);
+        document.getElementById("depotLng").textContent = lng.toFixed(6);
+        if (depotMarker) { depotMarker.setLatLng([lat, lng]); }
+        else {
+          depotMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+          depotMarker.on("dragend", (e) => {
+            const pos = e.target.getLatLng();
+            handleEndpointDrag("depot", pos.lat, pos.lng);
+          });
+        }
+        depotMarker.bindPopup("<strong>نقطة الانطلاق</strong><br>" + point.address);
+      } else {
+        destination = point;
+        document.getElementById("destAddress").textContent = point.address;
+        document.getElementById("destLat").textContent = lat.toFixed(6);
+        document.getElementById("destLng").textContent = lng.toFixed(6);
+        if (destinationMarker) { destinationMarker.setLatLng([lat, lng]); }
+        else {
+          // أيقونة "F" البرتقاني عشان تتفرق عن دبوس نقطة الانطلاق
+          destinationMarker = L.marker([lat, lng], {
+            draggable: true, icon: numberedIcon("F", true),
+          }).addTo(map);
+          destinationMarker.on("dragend", (e) => {
+            const pos = e.target.getLatLng();
+            handleEndpointDrag("destination", pos.lat, pos.lng);
+          });
+        }
+        destinationMarker.bindPopup("<strong>الوجهة النهائية</strong><br>" + point.address);
+      }
+      map.setView([lat, lng], 15);
+      updateAddBusButton();
+    }
+
+
+    async function handleEndpointDrag(type, lat, lng) {
+      setEndpoint(type, lat, lng, null);
+      setBusStatus("جاري تحديث الموقع...");
+      const address = await reverseGeocode(lat, lng);
+      if (address) setEndpoint(type, lat, lng, address);
+      setBusStatus(`تم تحديث ${endpointLabel(type)} ✓`, "ok");
+    }
+
+    function selectBusMapMode(type) {
+      busMode = type;
+      setBusStatus(`اضغط على الخريطة لاختيار ${endpointLabel(type)}`, "ok");
+    }
+
+    async function searchBusEndpoint(type) {
+      const inputId = type === "depot" ? "depotSearch" : "destSearch";
+      const resultsId = type === "depot" ? "depotResults" : "destResults";
+      const query = document.getElementById(inputId).value.trim();
+      if (!query) { setBusStatus("اكتب عنوان أولاً", "error"); return; }
+
+      setBusStatus("جاري البحث...");
+      const resultsEl = document.getElementById(resultsId);
+      resultsEl.innerHTML = "";
+      resultsEl.style.display = "none";
+
+      try {
+        const url = "https://nominatim.openstreetmap.org/search?format=json&q=" +
+          encodeURIComponent(query) + "&countrycodes=eg&limit=5&accept-language=ar";
+        const res = await fetch(url, { headers: { "Accept-Language": "ar" } });
+        const data = await res.json();
+
+        if (!data.length) { setBusStatus("مفيش نتائج للعنوان ده", "error"); return; }
+
+        data.forEach((item) => {
+          const li = document.createElement("li");
+          li.textContent = item.display_name;
+          li.onclick = () => {
+            setEndpoint(type, parseFloat(item.lat), parseFloat(item.lon), item.display_name);
+            resultsEl.style.display = "none";
+            setBusStatus(`تم اختيار ${endpointLabel(type)} ✓`, "ok");
+          };
+          resultsEl.appendChild(li);
+        });
+        resultsEl.style.display = "block";
+        setBusStatus(`تم العثور على ${data.length} نتيجة — اختار واحدة`);
+      } catch (err) {
+        setBusStatus("فشل البحث: " + err.message, "error");
+      }
+    }
+
+    document.getElementById("btnDepotSearch").onclick = () => searchBusEndpoint("depot");
+    document.getElementById("btnDepotMap").onclick = () => selectBusMapMode("depot");
+    document.getElementById("depotSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") searchBusEndpoint("depot"); });
+    document.getElementById("btnDestSearch").onclick = () => searchBusEndpoint("destination");
+    document.getElementById("btnDestMap").onclick = () => selectBusMapMode("destination");
+    document.getElementById("destSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") searchBusEndpoint("destination"); });
+    document.getElementById("busName").addEventListener("input", updateAddBusButton);
+    document.getElementById("busType").addEventListener("change", () => {
+  const info = selectedBusTypeInfo();
+  document.getElementById("busTypeCapacityHint").textContent =
+    info ? `سعة الباص: ${info.capacity} راكب` : "";
+  updateAddBusButton();
+});
+
+    // ------------------------------------------------------------------
+    async function loadBuses() {
+      const select = document.getElementById("busSelect");
+      try {
+        const res = await fetch(`${API_BASE}/buses`);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const buses = await res.json();
+
+        if (!buses.length) {
+          select.innerHTML = '<option value="">لا يوجد باصات — أضف باص من تاب الباصات</option>';
+          return;
+        }
+        select.innerHTML = buses.map((b) => `<option value="${b.id}">${b.name} (سعة ${b.capacity})</option>`).join("");
+        currentBusId = buses[0].id;
+        select.value = currentBusId;
+        await loadPassengersForCurrentBus();
+      } catch (err) {
+        select.innerHTML = '<option value="">فشل تحميل الباصات</option>';
+        setStatus("مش قادر أوصل للـ API على " + API_BASE + " — شغّل uvicorn الأول", "error");
+      }
+    }
+
+    document.getElementById("busSelect").addEventListener("change", (e) => {
+      currentBusId = e.target.value ? parseInt(e.target.value) : null;
+      if (passengerMode === "edit") loadEditMode();
+      else loadPassengersForCurrentBus();
+    });
+
+
+    function pinIcon(color) {
+      return L.divIcon({
+        className: "",
+        html: `<div style="width:18px; height:18px; border-radius:50% 50% 50% 0;
+          background:${color}; border:2px solid #0f172a; transform:rotate(-45deg);
+          box-shadow:0 2px 5px rgba(0,0,0,0.45);"></div>`,
+        iconSize: [18, 18],
+        iconAnchor: [9, 18],
+        popupAnchor: [0, -18],
+      });
+    }
+    const PIN_UNSAVED = "#3b82f6"; // blue
+    const PIN_SAVED = "#22c55e";   // green
+
+    async function loadPassengersForCurrentBus() {
+      passengerMarkers.forEach((m) => map.removeLayer(m));
+      passengerMarkers = [];
+      const countEl = document.getElementById("passengerCount");
+      if (!currentBusId) { countEl.textContent = ""; return; }
+      try {
+        const res = await fetch(`${API_BASE}/buses/${currentBusId}/passengers`);
+        const passengers = await res.json();
+        countEl.textContent = `عدد الركاب المسجلين: ${passengers.length}`;
+        passengers.forEach((p) => {
+          const m = L.marker([p.lat, p.lng], { icon: pinIcon(PIN_SAVED) })
+            .addTo(map)
+            .bindPopup(`<strong>${p.name}</strong><br>${passengerTypeLabel(p.passenger_type)}<br>${p.address}<br><span style="color:#22c55e;">✓ محفوظ</span>`);
+          passengerMarkers.push(m);
+        });
+      } catch (err) {
+        countEl.textContent = "";
+      }
+    }
+
+    function setSelection(lat, lng, address) {
+      selected = { lat, lng, address: address || selected.address };
+      document.getElementById("selectedLat").textContent = lat.toFixed(6);
+      document.getElementById("selectedLng").textContent = lng.toFixed(6);
+      document.getElementById("selectedAddress").textContent = selected.address || "تم الاختيار من الخريطة";
+
+      if (marker) { marker.setLatLng([lat, lng]); }
+      else {
+        marker = L.marker([lat, lng], { draggable: true, icon: pinIcon(PIN_UNSAVED) }).addTo(map);
+        marker.bindPopup("🔵 موقع لسه مش محفوظ — اسحبه لتظبيطه ثم دوس «حفظ»");
+        marker.on("dragend", (e) => {
+          const pos = e.target.getLatLng();
+          setSelection(pos.lat, pos.lng, null);
+          setStatus("جاري تحديد اسم الموقع...");
+          reverseGeocode(pos.lat, pos.lng).then((address) => {
+            if (address) {
+              selected.address = address;
+              document.getElementById("selectedAddress").textContent = address;
+            }
+            setStatus("تم تحديد الموقع من الخريطة", "ok");
+          });
+        });
+      }
+      map.setView([lat, lng], 15);
+      document.getElementById("btnSave").disabled = !currentBusId;
+      setStatus("");
+    }
+
+    // ==================================================================
+    // EDIT MODE: drag & drop 
+ 
+    // ==================================================================
+    let editMarkers = { depot: null, destination: null, passengers: [] };
+    let editRouteLine = null;
+
+    let editDirty = { depot: false, destination: false, passengers: new Set() };
+
+    function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
+
+    function setEditStatus(msg, type = "") {
+      const el = document.getElementById("editStatus");
+      el.textContent = msg;
+      el.className = "status " + type;
+    }
+
+    function clearEditLayers() {
+      if (editMarkers.depot) map.removeLayer(editMarkers.depot);
+      if (editMarkers.destination) map.removeLayer(editMarkers.destination);
+      editMarkers.passengers.forEach((p) => map.removeLayer(p.marker));
+      editMarkers = { depot: null, destination: null, passengers: [] };
+      if (editRouteLine) { map.removeLayer(editRouteLine); editRouteLine = null; }
+    }
+
+    async function loadEditMode() {
+      clearEditLayers();
+      editDirty = { depot: false, destination: false, passengers: new Set() };
+      if (!currentBusId) { setEditStatus("مفيش باص متاح للتعديل عليه"); return; }
+      setEditStatus("جاري تحميل بيانات الباص...");
+      try {
+        const [bus, passengers] = await Promise.all([
+          fetch(`${API_BASE}/buses/${currentBusId}`).then((r) => r.json()),
+          fetch(`${API_BASE}/buses/${currentBusId}/passengers`).then((r) => r.json()),
+        ]);
+
+        editMarkers.depot = L.marker([bus.depot_lat, bus.depot_lng], {
+          draggable: true, icon: numberedIcon("D", true),
+        }).addTo(map).bindPopup("<strong>نقطة الانطلاق</strong><br>اسحبها لتغيير مكانها");
+        editMarkers.depot.on("dragend", () => {
+          editDirty.depot = true;
+          setEditStatus("فيه تعديلات لسه مش محفوظة — دوس حفظ لما تخلص", "warn");
+        });
+
+        editMarkers.destination = L.marker([bus.dest_lat, bus.dest_lng], {
+          draggable: true, icon: numberedIcon("F", true),
+        }).addTo(map).bindPopup("<strong>الوجهة النهائية</strong><br>اسحبها لتغيير مكانها");
+        editMarkers.destination.on("dragend", () => {
+          editDirty.destination = true;
+          setEditStatus("فيه تعديلات لسه مش محفوظة — دوس حفظ لما تخلص", "warn");
+        });
+
+        editMarkers.passengers = passengers.map((p, i) => {
+          const m = L.marker([p.lat, p.lng], {
+            draggable: true, icon: numberedIcon(i + 1, false),
+          }).addTo(map).bindPopup(`<strong>${p.name}</strong><br>اسحبه لتغيير مكانه`);
+          m.on("dragend", () => {
+            editDirty.passengers.add(p.id);
+            setEditStatus("فيه تعديلات لسه مش محفوظة — دوس حفظ لما تخلص", "warn");
+          });
+          return { id: p.id, marker: m };
+        });
+
+        try {
+          const routeRes = await fetch(`${API_BASE}/buses/${currentBusId}/route`);
+          if (routeRes.ok) {
+            const route = await routeRes.json();
+            const linePoints = route.geometry && route.geometry.length ? route.geometry : route.ordered_stops;
+            if (linePoints && linePoints.length) {
+              editRouteLine = L.polyline(linePoints, {
+                color: "#94a3b8", weight: 3, opacity: 0.55, dashArray: "6 6",
+              }).addTo(map);
+            }
+          }
+        } catch (e) { /* مفيش مسار محسوب قبل كده، مش مشكلة */ }
+
+        const allPoints = [[bus.depot_lat, bus.depot_lng], [bus.dest_lat, bus.dest_lng],
+          ...passengers.map((p) => [p.lat, p.lng])];
+        map.fitBounds(allPoints, { padding: [40, 40] });
+
+        setEditStatus(`جاهز — ${passengers.length} راكب. اسحب أي نقطة لتغيير مكانها ثم احفظ.`);
+      } catch (err) {
+        setEditStatus("فشل تحميل بيانات الباص: " + err.message, "error");
+      }
+    }
+
+    async function saveEditsAndRecompute() {
+      if (!currentBusId || !editMarkers.depot || !editMarkers.destination) {
+        setEditStatus("مفيش باص محمّل للتعديل عليه", "error");
+        return;
+      }
+      const btn = document.getElementById("btnSaveEdits");
+      btn.disabled = true;
+      btn.textContent = "جاري الحفظ...";
+      try {
+        const depotPos = editMarkers.depot.getLatLng();
+        const destPos = editMarkers.destination.getLatLng();
+
+
+        let geocodeCount = 0;
+        async function throttledReverseGeocode(lat, lng) {
+          if (geocodeCount > 0) await sleep(1100);
+          geocodeCount++;
+          return reverseGeocode(lat, lng);
+        }
+
+        let depotAddress = null, destAddress = null;
+        if (editDirty.depot) {
+          setEditStatus("جاري تحديد اسم نقطة الانطلاق الجديدة...");
+          depotAddress = await throttledReverseGeocode(depotPos.lat, depotPos.lng);
+        }
+        if (editDirty.destination) {
+          setEditStatus("جاري تحديد اسم الوجهة الجديدة...");
+          destAddress = await throttledReverseGeocode(destPos.lat, destPos.lng);
+        }
+
+        const passengerPayload = [];
+        for (const p of editMarkers.passengers) {
+          const pos = p.marker.getLatLng();
+          let address = null;
+          if (editDirty.passengers.has(p.id)) {
+            setEditStatus("جاري تحديد اسم موقع الراكب الجديد...");
+            address = await throttledReverseGeocode(pos.lat, pos.lng);
+          }
+          passengerPayload.push({ id: p.id, lat: pos.lat, lng: pos.lng, address });
+        }
+
+        setEditStatus("جاري حفظ التعديلات...");
+        const payload = {
+          depot: { lat: depotPos.lat, lng: depotPos.lng, address: depotAddress },
+          destination: { lat: destPos.lat, lng: destPos.lng, address: destAddress },
+          passengers: passengerPayload,
+        };
+
+        const saveRes = await fetch(`${API_BASE}/buses/${currentBusId}/save-edits`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!saveRes.ok) { const err = await saveRes.json().catch(() => ({})); throw new Error(err.detail || "فشل حفظ التعديلات"); }
+
+        setEditStatus("تم الحفظ، جاري إعادة حساب المسار...");
+        const routeRes = await fetch(`${API_BASE}/buses/${currentBusId}/compute-route`, { method: "POST" });
+        if (!routeRes.ok) { const err = await routeRes.json().catch(() => ({})); throw new Error(err.detail || "فشل حساب المسار"); }
+        const result = await routeRes.json();
+
+        if (editRouteLine) { map.removeLayer(editRouteLine); editRouteLine = null; }
+        const linePoints = result.route_geometry && result.route_geometry.length
+          ? result.route_geometry : result.ordered_coordinates;
+        editRouteLine = L.polyline(linePoints, {
+          color: result.used_real_roads ? "#38bdf8" : "#f59e0b",
+          weight: 4, opacity: 0.85, dashArray: result.used_real_roads ? null : "8 6",
+        }).addTo(map);
+
+        editDirty = { depot: false, destination: false, passengers: new Set() };
+
+        setEditStatus(
+          `تم الحفظ وإعادة الحساب ✓ — المسافة الجديدة: ${result.total_distance_km} كم` +
+          (result.duration_min !== null ? ` (${result.duration_min} دقيقة)` : ""),
+          "ok"
+        );
+      } catch (err) {
+        setEditStatus("خطأ: " + err.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "💾 حفظ التعديلات وإعادة حساب المسار";
+      }
+    }
+
+    document.getElementById("btnSaveEdits").onclick = saveEditsAndRecompute;
+
+    async function reverseGeocode(lat, lng) {
+      try {
+        const url = "https://nominatim.openstreetmap.org/reverse?format=json&lat=" +
+          lat + "&lon=" + lng + "&accept-language=ar&zoom=18";
+        const res = await fetch(url, { headers: { "Accept-Language": "ar" } });
+        const data = await res.json();
+        return data && data.display_name ? data.display_name : null;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    map.on("click", (e) => {
+      const busPanelActive = busPanel.classList.contains("active") && operationsView.classList.contains("active");
+      if (busPanelActive && busMode) {
+        const type = busMode;
+        setEndpoint(type, e.latlng.lat, e.latlng.lng, null);
+        setBusStatus("جاري تحديد اسم الموقع...");
+        reverseGeocode(e.latlng.lat, e.latlng.lng).then((address) => {
+          if (address) {
+            if (type === "depot") {
+              depot.address = address;
+              document.getElementById("depotAddress").textContent = address;
+              if (depotMarker) depotMarker.bindPopup("<strong>نقطة الانطلاق</strong><br>" + address);
+            } else {
+              destination.address = address;
+              document.getElementById("destAddress").textContent = address;
+              if (destinationMarker) destinationMarker.bindPopup("<strong>الوجهة النهائية</strong><br>" + address);
+            }
+          }
+          setBusStatus(`تم تحديد ${endpointLabel(type)} من الخريطة ✓`, "ok");
+        });
+        busMode = null;
+        return;
+      }
+      const passengerPanelActive = passengerPanel.classList.contains("active") && operationsView.classList.contains("active");
+      if (passengerPanelActive && passengerMode === "add") {
+        setSelection(e.latlng.lat, e.latlng.lng, null);
+        setStatus("جاري تحديد اسم الموقع...");
+        reverseGeocode(e.latlng.lat, e.latlng.lng).then((address) => {
+          if (address) {
+            selected.address = address;
+            document.getElementById("selectedAddress").textContent = address;
+          }
+          setStatus("تم تحديد الموقع من الخريطة", "ok");
+        });
+      }
+    });
+
+    async function searchAddress() {
+      const query = document.getElementById("addressSearch").value.trim();
+      if (!query) { setStatus("اكتب عنوان أولاً", "error"); return; }
+      setStatus("جاري البحث...");
+      const resultsEl = document.getElementById("searchResults");
+      resultsEl.innerHTML = "";
+      resultsEl.style.display = "none";
+      try {
+        const url = "https://nominatim.openstreetmap.org/search?format=json&q=" +
+          encodeURIComponent(query) + "&countrycodes=eg&limit=5&accept-language=ar";
+        const res = await fetch(url, { headers: { "Accept-Language": "ar" } });
+        const data = await res.json();
+        if (!data.length) { setStatus("مفيش نتائج للعنوان ده", "error"); return; }
+        data.forEach((item) => {
+          const li = document.createElement("li");
+          li.textContent = item.display_name;
+          li.onclick = () => {
+            setSelection(parseFloat(item.lat), parseFloat(item.lon), item.display_name);
+            resultsEl.style.display = "none";
+            setStatus("تم اختيار الموقع من البحث", "ok");
+          };
+          resultsEl.appendChild(li);
+        });
+        resultsEl.style.display = "block";
+        setStatus(`تم العثور على ${data.length} نتيجة — اختار واحدة`);
+      } catch (err) {
+        setStatus("فشل البحث: " + err.message, "error");
+      }
+    }
+    document.getElementById("btnSearch").onclick = searchAddress;
+    document.getElementById("addressSearch").addEventListener("keydown", (e) => { if (e.key === "Enter") searchAddress(); });
+
+    async function handleGmapsInput(inputId, statusFn, applyFn) {
+      const raw = document.getElementById(inputId).value;
+      const parsed = await parseLocationInput(raw);
+      if (!parsed) {
+        statusFn("مقدرش أفهم الرابط/الإحداثيات دي، تأكد من الصيغة", "error");
+        return;
+      }
+      let address = parsed.name || null;
+      if (!address) {
+        statusFn("تم تحديد الإحداثيات، جاري تحديد اسم الموقع...");
+        address = await reverseGeocode(parsed.lat, parsed.lng);
+      }
+      applyFn(parsed.lat, parsed.lng, address);
+      statusFn("تم تحديد الموقع ✓", "ok");
+    }
+
+    document.getElementById("btnDepotGmaps").onclick = () => {
+      handleGmapsInput("depotGmaps", setBusStatus, (lat, lng, address) => setEndpoint("depot", lat, lng, address));
+    };
+    document.getElementById("btnDestGmaps").onclick = () => {
+      handleGmapsInput("destGmaps", setBusStatus, (lat, lng, address) => setEndpoint("destination", lat, lng, address));
+    };
+    document.getElementById("btnPassengerGmaps").onclick = () => {
+      handleGmapsInput("passengerGmaps", setStatus, (lat, lng, address) => setSelection(lat, lng, address));
+    };
+
+document.getElementById("btnSave").onclick = async () => {
+  if (!currentBusId) { setStatus("اختار باص أولاً", "error"); return; }
+  if (selected.lat === null) { setStatus("اختار موقع أولاً", "error"); return; }
+
+  const name = document.getElementById("passengerName").value.trim() || "بدون اسم";
+  const passengerType = document.getElementById("passengerType").value || null;
+  const payload = {
+    name, address: selected.address || "من الخريطة",
+    lat: selected.lat, lng: selected.lng,
+    passenger_type: passengerType,
+  };
+  const btn = document.getElementById("btnSave");
+  btn.disabled = true;
+  setStatus("جاري الحفظ...");
+  try {
+    const res = await fetch(`${API_BASE}/buses/${currentBusId}/passengers`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+    });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "HTTP " + res.status); }
+    const saved = await res.json();
+    setStatus(`تم حفظ ${saved.name} في الداتابيز ✓ — الدبوس اتلوّن أخضر`, "ok");
+    document.getElementById("passengerName").value = "";
+    document.getElementById("passengerType").value = "";
+    document.getElementById("addressSearch").value = "";
+    document.getElementById("passengerGmaps").value = "";
+
+
+        if (marker) { map.removeLayer(marker); marker = null; }
+        selected = { lat: null, lng: null, address: null };
+        document.getElementById("selectedAddress").textContent = "—";
+        document.getElementById("selectedLat").textContent = "—";
+        document.getElementById("selectedLng").textContent = "—";
+
+        await loadPassengersForCurrentBus();
+        btn.disabled = true; // active again when you choose the new location.
+      } catch (err) {
+        setStatus("فشل الحفظ: " + err.message, "error");
+        btn.disabled = false;
+      }
+    };
+
+document.getElementById("btnAddBus").onclick = async () => {
+  const name = document.getElementById("busName").value.trim();
+  const info = selectedBusTypeInfo();
+  if (!name) { setBusStatus("اكتب اسم الباص", "error"); return; }
+  if (!info) { setBusStatus("اختار نوع الباص (هاي إيس / كوستر)", "error"); return; }
+  if (depot.lat === null) { setBusStatus("حدد نقطة الانطلاق أولاً", "error"); return; }
+  if (destination.lat === null) { setBusStatus("حدد الوجهة النهائية أولاً", "error"); return; }
+
+
+  const payload = {
+    name, capacity: info.capacity, bus_type: info.type,
+    depot_lat: depot.lat, depot_lng: depot.lng,
+    depot_address: depot.address,
+    dest_lat: destination.lat, dest_lng: destination.lng,
+    dest_address: destination.address,
+  };
+      const btn = document.getElementById("btnAddBus");
+      btn.disabled = true;
+      setBusStatus("جاري إضافة الباص...");
+      try {
+        const res = await fetch(`${API_BASE}/buses`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "HTTP " + res.status); }
+        const savedBus = await res.json();
+        setBusStatus(`تم إضافة ${savedBus.name} بنجاح ✓ (ID: ${savedBus.id})`, "ok");
+
+        document.getElementById("busName").value = "";
+        document.getElementById("busType").value = "";
+document.getElementById("busTypeCapacityHint").textContent = "";
+        document.getElementById("depotSearch").value = "";
+        document.getElementById("depotGmaps").value = "";
+        document.getElementById("destSearch").value = "";
+        document.getElementById("destGmaps").value = "";
+        depot = { lat: null, lng: null, address: null };
+        destination = { lat: null, lng: null, address: null };
+        busMode = null;
+        document.getElementById("depotAddress").textContent = "—";
+        document.getElementById("depotLat").textContent = "—";
+        document.getElementById("depotLng").textContent = "—";
+        document.getElementById("destAddress").textContent = "—";
+        document.getElementById("destLat").textContent = "—";
+        document.getElementById("destLng").textContent = "—";
+        if (depotMarker) { map.removeLayer(depotMarker); depotMarker = null; }
+        if (destinationMarker) { map.removeLayer(destinationMarker); destinationMarker = null; }
+        updateAddBusButton();
+
+        await loadBuses();
+        document.getElementById("busSelect").value = savedBus.id;
+        currentBusId = savedBus.id;
+        await loadPassengersForCurrentBus();
+      } catch (err) {
+        setBusStatus("فشل إضافة الباص: " + err.message, "error");
+        btn.disabled = false;
+      }
+    };
+
+
+
+
+    function clearRouteLayers() {
+      if (routeLine) { map.removeLayer(routeLine); routeLine = null; }
+      routeStopMarkers.forEach((m) => map.removeLayer(m));
+      routeStopMarkers = [];
+      pauseSimulation();
+      if (simState.marker) { map.removeLayer(simState.marker); simState.marker = null; }
+      document.getElementById("simBox").style.display = "none";
+    }
+
+    // ------------------------------------------------------------------
+    // simulation bus.
+    // ------------------------------------------------------------------
+    const simState = {
+      points: [], cum: [], total: 0,
+      marker: null, playing: false,
+      elapsedMs: 0, lastTick: null,
+      durationMs: 20000, speed: 1, rafId: null,
+    };
+
+    function haversineMeters(a, b) {
+      const R = 6371000;
+      const lat1 = a[0] * Math.PI / 180, lat2 = b[0] * Math.PI / 180;
+      const dLat = (b[0] - a[0]) * Math.PI / 180;
+      const dLng = (b[1] - a[1]) * Math.PI / 180;
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    function prepSimulation(points) {
+      pauseSimulation();
+      if (simState.marker) { map.removeLayer(simState.marker); simState.marker = null; }
+      simState.points = points || [];
+      const cum = [0];
+      for (let i = 1; i < simState.points.length; i++) {
+        cum.push(cum[i - 1] + haversineMeters(simState.points[i - 1], simState.points[i]));
+      }
+      simState.cum = cum;
+      simState.total = cum[cum.length - 1] || 1;
+      simState.elapsedMs = 0;
+      document.getElementById("simProgress").value = 0;
+      setSimStatus("");
+      setSimPlayButton(false);
+      document.getElementById("simBox").style.display = simState.points.length > 1 ? "block" : "none";
+    }
+
+    function interpolateAlong(distance) {
+      const cum = simState.cum, pts = simState.points;
+      if (distance <= 0) return pts[0];
+      if (distance >= simState.total) return pts[pts.length - 1];
+      let i = 1;
+      while (i < cum.length && cum[i] < distance) i++;
+      const segStart = cum[i - 1], segEnd = cum[i];
+      const t = segEnd > segStart ? (distance - segStart) / (segEnd - segStart) : 0;
+      const a = pts[i - 1], b = pts[i];
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    }
+
+    function busIcon() {
+      return L.divIcon({
+        className: "",
+        html: `<div style="font-size:22px; line-height:1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6));">🚌</div>`,
+        iconSize: [24, 24], iconAnchor: [12, 12],
+      });
+    }
+
+    function setSimPlayButton(isPlaying) {
+      document.getElementById("btnSimPlay").textContent = isPlaying ? "⏸ إيقاف مؤقت" : "▶ تشغيل المحاكاة";
+    }
+
+    function setSimStatus(msg, type = "") {
+      const el = document.getElementById("simStatus");
+      el.textContent = msg;
+      el.className = "status " + type;
+    }
+
+    function simTick(now) {
+      if (!simState.playing) return;
+      const dt = now - simState.lastTick;
+      simState.lastTick = now;
+      simState.elapsedMs += dt * simState.speed;
+      const frac = Math.min(simState.elapsedMs / simState.durationMs, 1);
+      const pos = interpolateAlong(frac * simState.total);
+      if (!simState.marker) simState.marker = L.marker(pos, { icon: busIcon(), zIndexOffset: 1000 }).addTo(map);
+      else simState.marker.setLatLng(pos);
+      document.getElementById("simProgress").value = Math.round(frac * 100);
+      if (frac >= 1) {
+        simState.playing = false;
+        setSimPlayButton(false);
+        setSimStatus("وصل الباص للوجهة النهائية ✓", "ok");
+        return;
+      }
+      simState.rafId = requestAnimationFrame(simTick);
+    }
+
+    function playSimulation() {
+      if (!simState.points.length) return;
+      if (simState.elapsedMs >= simState.durationMs) simState.elapsedMs = 0;
+      simState.playing = true;
+      simState.lastTick = performance.now();
+      setSimPlayButton(true);
+      setSimStatus("جاري تشغيل المحاكاة...");
+      simState.rafId = requestAnimationFrame(simTick);
+    }
+
+    function pauseSimulation() {
+      simState.playing = false;
+      if (simState.rafId) cancelAnimationFrame(simState.rafId);
+      setSimPlayButton(false);
+    }
+
+    function restartSimulation() {
+      pauseSimulation();
+      simState.elapsedMs = 0;
+      if (simState.points.length) {
+        if (!simState.marker) simState.marker = L.marker(simState.points[0], { icon: busIcon(), zIndexOffset: 1000 }).addTo(map);
+        else simState.marker.setLatLng(simState.points[0]);
+      }
+      document.getElementById("simProgress").value = 0;
+      setSimStatus("");
+    }
+
+    document.getElementById("btnSimPlay").onclick = () => { simState.playing ? pauseSimulation() : playSimulation(); };
+    document.getElementById("btnSimRestart").onclick = restartSimulation;
+    document.getElementById("simSpeed").onchange = (e) => { simState.speed = parseFloat(e.target.value); };
+    document.getElementById("simProgress").oninput = (e) => {
+      pauseSimulation();
+      const frac = Number(e.target.value) / 100;
+      simState.elapsedMs = frac * simState.durationMs;
+      const pos = interpolateAlong(frac * simState.total);
+      if (!simState.marker) simState.marker = L.marker(pos, { icon: busIcon(), zIndexOffset: 1000 }).addTo(map);
+      else simState.marker.setLatLng(pos);
+    };
+
+    function numberedIcon(n, isEndpoint) {
+      return L.divIcon({
+        className: "",
+        html: `<div style="background:${isEndpoint ? "#f59e0b" : "#22c55e"};
+          color:#0f172a; font-weight:700; font-size:12px; width:24px; height:24px;
+          border-radius:50%; display:flex; align-items:center; justify-content:center;
+          border:2px solid #0f172a;">${n}</div>`,
+        iconSize: [24, 24], iconAnchor: [12, 12],
+      });
+    }
+
+    // ==================================================================
+    // Route details modal 
+    // ==================================================================
+    const routeModalOverlay = document.getElementById("routeModalOverlay");
+    const btnViewRouteDetails = document.getElementById("btnViewRouteDetails");
+    function openRouteModal() { routeModalOverlay.classList.add("open"); }
+    function closeRouteModal() { routeModalOverlay.classList.remove("open"); }
+    document.getElementById("btnCloseRouteModal").onclick = closeRouteModal;
+    routeModalOverlay.addEventListener("click", (e) => {
+      if (e.target === routeModalOverlay) closeRouteModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && routeModalOverlay.classList.contains("open")) closeRouteModal();
+    });
+    btnViewRouteDetails.onclick = openRouteModal;
+
+    async function computeRoute() {
+      if (!currentBusId) { setStatus("اختار باص أولاً", "error"); return; }
+      const btn = document.getElementById("btnCompute");
+      btn.disabled = true;
+      btn.textContent = "جاري الحساب...";
+      setStatus("جاري حساب المسار الأمثل...");
+      try {
+        const res = await fetch(`${API_BASE}/buses/${currentBusId}/compute-route`, { method: "POST" });
+        if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.detail || "HTTP " + res.status); }
+        const result = await res.json();
+        clearRouteLayers();
+        
+
+        const linePoints = result.route_geometry && result.route_geometry.length
+          ? result.route_geometry : result.ordered_coordinates;
+        routeLine = L.polyline(linePoints, {
+          color: result.used_real_roads ? "#38bdf8" : "#f59e0b",
+          weight: 4, opacity: 0.85, dashArray: result.used_real_roads ? null : "8 6",
+        }).addTo(map);
+
+        result.ordered_coordinates.forEach((coord, i) => {
+          const isEndpoint = i === 0 || i === result.ordered_coordinates.length - 1;
+          const label = i === 0 ? "D" : i === result.ordered_coordinates.length - 1 ? "F" : i;
+          const m = L.marker(coord, { icon: numberedIcon(label, isEndpoint) })
+            .addTo(map)
+            .bindPopup(isEndpoint ? (i === 0 ? "نقطة الانطلاق" : "الوجهة النهائية") : `محطة رقم ${i}`);
+          routeStopMarkers.push(m);
+        });
+
+        map.fitBounds(routeLine.getBounds(), { padding: [30, 30] });
+        prepSimulation(linePoints);
+
+        const saving = ((result.naive_distance_km - result.total_distance_km) / result.naive_distance_km) * 100;
+        document.getElementById("routeStops").textContent = result.num_passengers;
+        document.getElementById("routeDistance").textContent = result.total_distance_km;
+        document.getElementById("routeDuration").textContent = result.duration_min !== null ? `${result.duration_min} دقيقة` : "غير متاح";
+        document.getElementById("routeSavings").textContent = `${saving.toFixed(1)}% (${result.naive_distance_km} كم قبل التحسين)`;
+        document.getElementById("routeResultBox").style.display = "block";
+        lastComputedRoute = result;
+        btnViewRouteDetails.style.display = "block";
+
+        const legsBox = document.getElementById("legsBox");
+        const legsList = document.getElementById("legsList");
+        legsList.innerHTML = "";
+        if (result.legs && result.legs.length) {
+          const n = result.ordered_coordinates.length;
+          result.legs.forEach((leg, i) => {
+            const fromLabel = i === 0 ? "نقطة الانطلاق" : `محطة ${i}`;
+            const toLabel = i === n - 2 ? "الوجهة النهائية" : `محطة ${i + 1}`;
+            const li = document.createElement("li");
+            li.textContent = `${fromLabel} ← ${toLabel}: ${leg.duration_min} دقيقة (${leg.distance_km} كم)`;
+            legsList.appendChild(li);
+          });
+          legsBox.style.display = "block";
+        } else {
+          legsBox.style.display = "none";
+        }
+
+        setStatus(result.used_real_roads ? "تم حساب المسار على الطرق الحقيقية ✓" : "تم الحساب بخطوط مستقيمة تقريبية (OSRM مش متاح دلوقتي)", "ok");
+        openRouteModal();
+      } catch (err) {
+        setStatus("فشل حساب المسار: " + err.message, "error");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "احسب المسار الأمثل 🚌";
+      }
+    }
+    document.getElementById("btnCompute").onclick = computeRoute;
+
+    
+
+
+    // ==================================================================
+    // EXPORT ROUTE (open in Google Maps)
+    // ==================================================================
+    function openRouteInGoogleMaps(route) {
+      // Uses ordered stop coordinates (not full geometry) — works in browser / mobile app
+      let pts = [];
+      if (route.stops_detail && route.stops_detail.length) {
+        pts = route.stops_detail
+          .filter((s) => s.lat != null && s.lng != null)
+          .map((s) => [s.lat, s.lng]);
+      } else if (route.ordered_coordinates && route.ordered_coordinates.length) {
+        pts = route.ordered_coordinates;
+      } else if (route.ordered_stops && route.ordered_stops.length) {
+        pts = route.ordered_stops;
+      }
+      if (pts.length < 2) {
+        alert("مفيش نقاط كافية لفتح المسار في Google Maps");
+        return;
+      }
+      // Google Maps directions: origin, destination, waypoints (max ~10 intermediate in URL)
+      const origin = pts[0];
+      const dest = pts[pts.length - 1];
+      const middle = pts.slice(1, -1);
+      // Keep URL reasonable: if many stops, sample evenly up to 8 waypoints
+      let waypoints = middle;
+      if (middle.length > 8) {
+        const step = middle.length / 8;
+        waypoints = [];
+        for (let i = 0; i < 8; i++) waypoints.push(middle[Math.floor(i * step)]);
+      }
+      const wp = waypoints.map((p) => `${p[0]},${p[1]}`).join("|");
+      let url = `https://www.google.com/maps/dir/?api=1&origin=${origin[0]},${origin[1]}&destination=${dest[0]},${dest[1]}&travelmode=driving`;
+      if (wp) url += `&waypoints=${encodeURIComponent(wp)}`;
+      window.open(url, "_blank");
+    }
+
+    // ==================================================================
+    // DASHBOARD VIEW LOGIC
+    // ==================================================================
+    const busList = document.getElementById("busList");
+    const statusLine = document.getElementById("statusLine");
+    let dashboardData = []; // [{bus, route, passengers}] من آخر تحميل للوحة المتابعة
+    let selectedBusIds = new Set();
+
+    function syncDashboardSelectionUI() {
+      const selectAllCb = document.getElementById("selectAllBuses");
+      const exportBtn = document.getElementById("btnExportExcel");
+      const total = dashboardData.length;
+      const selectedCount = dashboardData.filter((d) => selectedBusIds.has(d.bus.id)).length;
+      selectAllCb.checked = total > 0 && selectedCount === total;
+      selectAllCb.indeterminate = selectedCount > 0 && selectedCount < total;
+      exportBtn.disabled = selectedCount === 0;
+      exportBtn.textContent = selectedCount > 0 ? `📥 تصدير Excel (${selectedCount})` : "📥 تصدير Excel";
+    }
+
+    document.getElementById("selectAllBuses").addEventListener("change", (e) => {
+      if (e.target.checked) dashboardData.forEach((d) => selectedBusIds.add(d.bus.id));
+      else selectedBusIds.clear();
+      document.querySelectorAll(".bus-select-checkbox").forEach((cb) => {
+        cb.checked = selectedBusIds.has(Number(cb.dataset.busId));
+      });
+      syncDashboardSelectionUI();
+    });
+
+
+    function sanitizeSheetName(name, usedNames) {
+      let clean = String(name || "باص").replace(/[\\/?*\[\]:]/g, "").trim();
+      if (!clean) clean = "باص";
+      clean = clean.slice(0, 28);
+      let finalName = clean;
+      let i = 2;
+      while (usedNames.has(finalName)) {
+        finalName = `${clean} (${i})`.slice(0, 31);
+        i++;
+      }
+      usedNames.add(finalName);
+      return finalName;
+    }
+
+    function exportBusesToExcel() {
+      const selected = dashboardData.filter((d) => selectedBusIds.has(d.bus.id));
+      if (!selected.length) return;
+
+      // excel sheet
+      const busRows = selected.map(({ bus, route, passengers }) => {
+        const saving = route && route.naive_distance_km
+          ? `${(((route.naive_distance_km - route.total_distance_km) / route.naive_distance_km) * 100).toFixed(1)}%`
+          : "—";
+        return {
+          "ID الباص": bus.id,
+          "نوع الباص": busTypeLabel(bus.bus_type),
+          "اسم الباص": bus.name,
+          "السعة": bus.capacity,
+          "عدد الركاب المسجلين": (passengers || []).length,
+          "عنوان الانطلاق": bus.depot_address || fmtCoord(bus.depot_lat, bus.depot_lng),
+          "نسبة التوفير": saving,
+        };
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(busRows), "الباصات");
+
+  
+      const usedSheetNames = new Set(["الباصات"]);
+      selected.forEach(({ bus, route, passengers }) => {
+        const passengerById = {};
+        (passengers || []).forEach((p) => { passengerById[p.id] = p; });
+
+        let stationRows;
+        if (route && route.stops_detail && route.stops_detail.length) {
+          stationRows = route.stops_detail.map((s) => {
+            const isPassenger = s.type === "passenger";
+            const p = isPassenger ? passengerById[s.passenger_id] : null;
+            return {
+              "الترتيب": s.type === "depot" ? "D" : s.type === "destination" ? "F" : s.order,
+              "نوع المحطة": s.type === "depot" ? "نقطة الانطلاق" : s.type === "destination" ? "الوجهة النهائية" : "راكب",
+              "الاسم": s.type === "depot" ? "—" : s.type === "destination" ? "—" : (s.name || p?.name || "بدون اسم"),
+              "نوع الراكب": s.type === "passenger" ? passengerTypeLabel(p?.passenger_type) : "—",
+              "العنوان": s.type === "passenger" ? (s.address || p?.address || "—") : "—",
+              "الوقت من المحطة اللي قبلها (دقيقة)": s.leg_from_previous_min ?? "—",
+              "المسافة من المحطة اللي قبلها (كم)": s.leg_from_previous_km ?? "—",
+            };
+          });
+        } else {
+          // لسه محدش حسب مسار للباص ده — نعرض الركاب من غير ترتيب أو وقت
+          stationRows = (passengers || []).map((p) => ({
+            "الترتيب": "—",
+            "نوع المحطة": "راكب",
+            "الاسم": p.name || "بدون اسم",
+             "نوع الراكب": passengerTypeLabel(p.passenger_type),
+            "العنوان": p.address || "—",
+            "الوقت من المحطة اللي قبلها (دقيقة)": "—",
+            "المسافة من المحطة اللي قبلها (كم)": "—",
+          }));
+        }
+
+        const sheetName = sanitizeSheetName(bus.name, usedSheetNames);
+        XLSX.utils.book_append_sheet(
+          wb,
+          XLSX.utils.json_to_sheet(stationRows.length ? stationRows : [{ "ملاحظة": "لا يوجد ركاب مسجلين لهذا الباص" }]),
+          sheetName
+        );
+      });
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(wb, `Masar-Buses-${stamp}.xlsx`);
+    }
+    document.getElementById("btnExportExcel").addEventListener("click", exportBusesToExcel);
+
+    function setDashStatus(msg, isError = false) {
+      statusLine.textContent = msg;
+      statusLine.className = "status-line" + (isError ? " error" : "");
+    }
+    function fmtCoord(lat, lng) {
+      if (lat == null || lng == null) return "—";
+      return `${Number(lat).toFixed(4)}, ${Number(lng).toFixed(4)}`;
+    }
+    function stopLabel(stop) {
+      if (stop.type === "depot") return { cls: "depot", txt: "D" };
+      if (stop.type === "destination") return { cls: "destination", txt: "F" };
+      return { cls: "passenger", txt: stop.order };
+    }
+    function renderStopsTable(stopsDetail, passengers) {
+
+      let orderedPassengers = passengers || [];
+      if (stopsDetail && stopsDetail.length) {
+        const orderMap = {};
+        stopsDetail.forEach((s) => {
+          if (s.type === "passenger" && s.passenger_id != null) orderMap[s.passenger_id] = s.order;
+        });
+        orderedPassengers = [...orderedPassengers].sort((a, b) => {
+          const oa = orderMap[a.id] ?? Infinity;
+          const ob = orderMap[b.id] ?? Infinity;
+          return oa - ob;
+        });
+      }
+
+      const passengerList = orderedPassengers.map((p) => `
+        <tr>
+          <td>${p.name || "بدون اسم"}</td>
+          <td>${passengerTypeLabel(p.passenger_type)}</td>
+          <td>${p.address || "—"}</td>
+          
+          <td class="passenger-actions"><button class="delete-btn delete-passenger-btn" data-passenger-id="${p.id}" title="حذف الراكب" aria-label="حذف الراكب">🗑️</button></td>
+        </tr>`).join("");
+
+      const passengersSection = `
+        <div class="passenger-table-wrap">
+          <div class="endpoint-title" style="margin-bottom:8px;">الركاب المسجلين</div>
+          <table class="passenger-table">
+            <thead><tr><th>اسم الراكب</th><th>النوع</th><th>العنوان</th><th></th></tr></thead>
+            <tbody>${passengerList || `<tr><td colspan="4" class="empty-note">لا يوجد ركاب</td></tr>`}</tbody>
+          </table>
+        </div>`;
+
+      if (!stopsDetail || !stopsDetail.length) {
+        return passengersSection + `<div class="no-route-note" style="margin-top:14px;">لسه محدش حسب مسار للباص ده. احسبه من تاب "الركاب".</div>`;
+      }
+
+      const rows = stopsDetail.map((s) => {
+        const badge = stopLabel(s);
+        const nameCell = s.type === "depot" ? "نقطة الانطلاق (الديبو)" : s.type === "destination" ? "الوجهة النهائية" : s.name;
+        const addressCell = s.type === "passenger" ? (s.address || "—") : "—";
+        const timeCell = s.leg_from_previous_min != null ? `${s.leg_from_previous_min} دقيقة (${s.leg_from_previous_km} كم)` : "—";
+        const deleteCell = s.type === "passenger" ? `<button class="delete-btn delete-passenger-btn" data-passenger-id="${s.passenger_id}" title="حذف الراكب" aria-label="حذف الراكب">🗑️</button>` : "";
+        return `<tr><td><span class="stop-badge ${badge.cls}">${badge.txt}</span></td><td>${nameCell}</td><td>${addressCell}</td><td>${timeCell}</td><td class="passenger-actions">${deleteCell}</td></tr>`;
+      }).join("");
+
+      return passengersSection + `
+        <div class="passenger-table-wrap">
+          <div class="endpoint-title" style="margin-bottom:8px;">ترتيب المحطات في آخر مسار محسوب</div>
+          <table><thead><tr><th>#</th><th>اسم الراكب</th><th>العنوان</th><th>الوقت من المحطة اللي قبلها</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+        </div>`;
+    }
+
+    async function deletePassengerFromDashboard(busId, passengerId, passengerName) {
+      const confirmed = confirm(`هل أنتِ متأكدة من حذف الراكب "${passengerName || "هذا الراكب"}"؟\nسيتم حذفه من قاعدة البيانات، وسيتم مسح الـ Route المحفوظ للباص لأن المسار أصبح غير صالح.`);
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`${API_BASE}/buses/${busId}/passengers/${passengerId}`, { method: "DELETE" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || "HTTP " + res.status);
+        setDashStatus("تم حذف الراكب من الداتابيز ✓");
+        await loadDashboard();
+        await loadBuses();
+      } catch (err) { setDashStatus("فشل حذف الراكب: " + err.message, true); }
+    }
+
+    async function deleteBusFromDashboard(busId, busName) {
+      const confirmed = confirm(`هل أنتِ متأكدة من حذف "${busName}"؟\nسيتم حذف الباص وكل الركاب والـ Routes الخاصة به من قاعدة البيانات.`);
+      if (!confirmed) return;
+      try {
+        const res = await fetch(`${API_BASE}/buses/${busId}`, { method: "DELETE" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || "HTTP " + res.status);
+        if (currentBusId === busId) currentBusId = null;
+        setDashStatus("تم حذف الباص وكل بياناته من الداتابيز ✓");
+        await loadDashboard();
+        await loadBuses();
+      } catch (err) { setDashStatus("فشل حذف الباص: " + err.message, true); }
+    }
+
+    function attachDeleteHandlers(card, bus, passengers) {
+      card.querySelector(".delete-bus-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteBusFromDashboard(bus.id, bus.name);
+      });
+      card.querySelectorAll(".delete-passenger-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const passengerId = Number(btn.dataset.passengerId);
+          const passenger = (passengers || []).find((p) => p.id === passengerId);
+          deletePassengerFromDashboard(bus.id, passengerId, passenger?.name);
+        });
+      });
+    }
+
+    function dashStopIcon(label, isEndpoint) {
+      return L.divIcon({
+        className: "",
+        html: `<div style="background:${isEndpoint ? "#f59e0b" : "#22c55e"};
+          color:#0f172a; font-weight:700; font-size:11px; width:22px; height:22px;
+          border-radius:50%; display:flex; align-items:center; justify-content:center;
+          border:2px solid #0f172a;">${label}</div>`,
+        iconSize: [22, 22], iconAnchor: [11, 11],
+      });
+    }
+
+    function initDashboardMap(mapEl, route, bus) {
+      if (!mapEl || mapEl._dashMapInited) return;
+      mapEl._dashMapInited = true;
+      const linePoints =
+        (route.geometry && route.geometry.length) ? route.geometry :
+        (route.ordered_stops && route.ordered_stops.length) ? route.ordered_stops : null;
+      const dashMap = L.map(mapEl, { zoomControl: true, attributionControl: false })
+        .setView([bus.depot_lat || 30.0444, bus.depot_lng || 31.2357], 12);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(dashMap);
+      const boundsPts = [];
+      if (linePoints && linePoints.length) {
+        L.polyline(linePoints, {
+          color: route.used_real_roads ? "#38bdf8" : "#f59e0b",
+          weight: 4, opacity: 0.9,
+          dashArray: route.used_real_roads ? null : "8 6",
+        }).addTo(dashMap);
+        linePoints.forEach((p) => boundsPts.push(p));
+      }
+      const stops = route.stops_detail && route.stops_detail.length ? route.stops_detail : null;
+      if (stops) {
+        stops.forEach((s, i) => {
+          if (s.lat == null || s.lng == null) return;
+          const isEndpoint = s.type === "depot" || s.type === "destination";
+          const label = s.type === "depot" ? "D" : s.type === "destination" ? "F" : (s.order != null ? s.order : i);
+          const title = s.type === "depot" ? "نقطة الانطلاق"
+            : s.type === "destination" ? "الوجهة النهائية" : (s.name || `محطة ${label}`);
+          L.marker([s.lat, s.lng], { icon: dashStopIcon(label, isEndpoint) })
+            .addTo(dashMap)
+            .bindPopup(`<strong>${title}</strong>${s.address ? "<br>" + s.address : ""}`);
+          boundsPts.push([s.lat, s.lng]);
+        });
+      } else {
+        if (bus.depot_lat != null) {
+          L.marker([bus.depot_lat, bus.depot_lng], { icon: dashStopIcon("D", true) })
+            .addTo(dashMap).bindPopup("<strong>نقطة الانطلاق</strong>");
+          boundsPts.push([bus.depot_lat, bus.depot_lng]);
+        }
+        if (bus.dest_lat != null) {
+          L.marker([bus.dest_lat, bus.dest_lng], { icon: dashStopIcon("F", true) })
+            .addTo(dashMap).bindPopup("<strong>الوجهة النهائية</strong>");
+          boundsPts.push([bus.dest_lat, bus.dest_lng]);
+        }
+      }
+      if (boundsPts.length) dashMap.fitBounds(boundsPts, { padding: [28, 28] });
+      setTimeout(() => dashMap.invalidateSize(), 80);
+      mapEl._dashMap = dashMap;
+    }
+
+    function renderBusCard(bus, route, passengers) {
+      const card = document.createElement("div");
+      card.className = "bus-card";
+      const passengerCount = (passengers || []).length;
+      const totalDuration = route && route.duration_min != null ? `${route.duration_min} دقيقة` : "—";
+      const totalDistance = route && route.total_distance_km != null ? `${route.total_distance_km} كم` : "—";
+      const stopCount = route && route.stops_detail ? route.stops_detail.length : "—";
+      const hasRouteGeom = !!(route && (
+        (route.geometry && route.geometry.length) ||
+        (route.ordered_stops && route.ordered_stops.length) ||
+        (route.stops_detail && route.stops_detail.length)
+      ));
+      const mapBlock = hasRouteGeom
+        ? `<div class="dash-map-wrap">
+             <div class="dash-map-title">🗺️ مسار الباص على الخريطة</div>
+             <div class="dash-map" data-dash-map></div>
+             <div class="export-row" style="padding:10px 12px 12px;">
+               <button type="button" class="btn-download inline dash-open-gmaps" style="background:#0ea5e9;">🗺️ فتح في Google Maps</button>
+             </div>
+           </div>`
+        : `<div class="dash-map-wrap"><div class="dash-map-empty">لسه مفيش مسار محسوب للباص ده — احسبه من تاب الركاب عشان يظهر هنا.</div></div>`;
+
+      card.innerHTML = `
+        <div class="bus-card-header">
+          <div class="bus-title">
+            <label class="bus-select-wrap" title="تحديد الباص للتصدير">
+              <input type="checkbox" class="bus-select-checkbox" data-bus-id="${bus.id}" ${selectedBusIds.has(bus.id) ? "checked" : ""} />
+            </label>
+            <span class="chevron">▶</span><div><div class="bus-name">${bus.name}</div><div class="bus-cap">${busTypeLabel(bus.bus_type)} (سعة ${bus.capacity}) — ${passengerCount} راكب مسجل</div></div>
+          </div>
+          <div class="stat-strip"><span>المسافة: <b>${totalDistance}</b></span><span>مدة الرحلة الكلية: <b>${totalDuration}</b></span><span>عدد المحطات: <b>${stopCount}</b></span><button class="delete-btn delete-bus-btn" title="حذف الباص" aria-label="حذف الباص">🗑️</button></div>
+        </div>
+        <div class="bus-card-body">
+          <div class="meta-row"><div class="meta-box" title="${fmtCoord(bus.depot_lat, bus.depot_lng)}"><div class="label">نقطة الانطلاق (الديبو)</div><div class="value">${bus.depot_address || fmtCoord(bus.depot_lat, bus.depot_lng)}</div></div><div class="meta-box" title="${fmtCoord(bus.dest_lat, bus.dest_lng)}"><div class="label">الوجهة النهائية</div><div class="value">${bus.dest_address || fmtCoord(bus.dest_lat, bus.dest_lng)}</div></div><div class="meta-box"><div class="label">إجمالي الوقت</div><div class="value">${totalDuration}</div></div><div class="meta-box"><div class="label">إجمالي المسافة</div><div class="value">${totalDistance}</div></div></div>
+          ${mapBlock}
+          ${renderStopsTable(route ? route.stops_detail : null, passengers)}
+        </div>`;
+
+      card.querySelector(".bus-card-header").addEventListener("click", () => {
+        const opening = !card.classList.contains("open");
+        card.classList.toggle("open");
+        if (opening && hasRouteGeom) {
+          const mapEl = card.querySelector("[data-dash-map]");
+          setTimeout(() => {
+            initDashboardMap(mapEl, route, bus);
+            if (mapEl && mapEl._dashMap) mapEl._dashMap.invalidateSize();
+          }, 40);
+        }
+      });
+      const selectCb = card.querySelector(".bus-select-checkbox");
+      selectCb.addEventListener("click", (e) => e.stopPropagation());
+      selectCb.addEventListener("change", (e) => {
+        e.stopPropagation();
+        if (e.target.checked) selectedBusIds.add(bus.id);
+        else selectedBusIds.delete(bus.id);
+        syncDashboardSelectionUI();
+      });
+      if (hasRouteGeom) {
+        const gmapsBtn = card.querySelector(".dash-open-gmaps");
+        if (gmapsBtn) gmapsBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          openRouteInGoogleMaps(route);
+        });
+      }
+      attachDeleteHandlers(card, bus, passengers);
+      return card;
+    }
+    async function safeJson(res) {
+      if (!res.ok) return null;
+      try { return await res.json(); } catch { return null; }
+    }
+    async function loadDashboard() {
+      const btn = document.getElementById("btnRefresh");
+      btn.disabled = true;
+      setDashStatus("جاري تحميل الباصات...");
+      busList.innerHTML = "";
+      try {
+        const busesRes = await fetch(`${API_BASE}/buses`);
+        if (!busesRes.ok) throw new Error("HTTP " + busesRes.status);
+        const buses = await busesRes.json();
+        if (!buses.length) {
+          setDashStatus("لا يوجد باصات مسجلة بعد.");
+          dashboardData = [];
+          selectedBusIds.clear();
+          syncDashboardSelectionUI();
+          btn.disabled = false;
+          return;
+        }
+
+        setDashStatus(`جاري تحميل تفاصيل ${buses.length} باص...`);
+        const results = await Promise.all(buses.map(async (bus) => {
+          const [route, passengers] = await Promise.all([
+            fetch(`${API_BASE}/buses/${bus.id}/route`).then(safeJson),
+            fetch(`${API_BASE}/buses/${bus.id}/passengers`).then(safeJson),
+          ]);
+          return { bus, route, passengers: passengers || [] };
+        }));
+
+        results.sort((a, b) => a.bus.id - b.bus.id).forEach(({ bus, route, passengers }) => {
+          busList.appendChild(renderBusCard(bus, route, passengers));
+        });
+        dashboardData = results;
+        const liveIds = new Set(results.map((r) => r.bus.id));
+        selectedBusIds.forEach((id) => { if (!liveIds.has(id)) selectedBusIds.delete(id); });
+        syncDashboardSelectionUI();
+        setDashStatus(`تم تحميل ${buses.length} باص ✓`);
+      } catch (err) {
+        setDashStatus("مش قادر أوصل للـ API على " + API_BASE + " — شغّل uvicorn الأول (" + err.message + ")", true);
+      } finally {
+        btn.disabled = false;
+      }
+    }
+    document.getElementById("btnRefresh").onclick = loadDashboard;
+
+    // ==================================================================
+    // Initial load
+    // ==================================================================
+    loadBuses();
+    loadDashboard();
+    dashboardLoadedOnce = true;
+  </script>
+</body>
+</html>
