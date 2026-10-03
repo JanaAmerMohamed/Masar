@@ -58,7 +58,7 @@ Enter the passenger's name and type, then pick the location from the map. The pi
 ### 4. Route Summary and Simulation
 After computing the route you get the total distance, expected time, savings versus the unoptimized order, time between stops, and a trip simulation.
  
-![Route Summary](screenshots\Route_Summary.png)
+![Route Summary](screenshots/Route_Summary.png)
 
 ### Simulation Video
 
