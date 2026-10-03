@@ -125,7 +125,6 @@ python main.py
 ```
 
 The server starts on `http://127.0.0.1:8000` and opens the dashboard in your browser automatically.
-Interactive API docs are available at `http://127.0.0.1:8000/docs`.
 
 ---
 
